@@ -7,8 +7,6 @@
 
 Report2MRI generates a 3D brain MRI volume (T1w, T2w, FLAIR or SWI; axial, sagittal or coronal) from a free-text radiology report. It leverages NVIDIA's [NV-Generate-MR-Brain](https://huggingface.co/nvidia/NV-Generate-MR-Brain) latent diffusion model frozen and adds five zero-initialised cross-attention adapters.
 
----
-
 ## Overview
 
 **Report conditioning**: Following [Report2CT](https://arxiv.org/abs/2509.14780), the findings and impression sections are encoded separately by three frozen medical text encoders (MedEmbed-large, Bio_ClinicalBERT, CXR-BERT), mean-pooled and concatenated into one 2560-d token per section. We add a third token describing the requested series as text (`[MODALITY] m [PLANE] p [SPACING] x y z`).
@@ -16,8 +14,6 @@ Report2MRI generates a 3D brain MRI volume (T1w, T2w, FLAIR or SWI; axial, sagit
 **Training**: The backbone's own objective, an L1 loss on the rectified-flow velocity, trains only the adapters and a context projection. The UNet, VAE and text encoders stay frozen. Report and modality labels are each dropped with p = 0.1 so that classifier-free guidance can be used at inference.
 
 **Inference**: 30 rectified-flow steps with hierarchical classifier-free guidance, in which the report is applied on top of the base model's modality guidance (modality scale 7, report scale 3). The volume is then resampled to a slice thickness and in-plane spacing drawn from the training-split acquisition statistics for its modality and plane, keeping the physical field of view. This output-grid calibration matters because the challenge's 2.5D FID slices each volume on the grid it is written on.
-
----
 
 ## Method
 
@@ -55,8 +51,6 @@ How the submitted configuration was built up (official test-set scores):
 
 Run-to-run spread of the same container is up to 0.002 SSIM and 4.9 FID, so the last row is within noise of the one above.
 
----
-
 ## Pretrained Checkpoint
 
 The trained adapter is on Hugging Face:
@@ -83,8 +77,6 @@ hf download microsoft/BiomedVLP-CXR-BERT-specialized --local-dir BiomedVLP-CXR-B
 ```
 
 The adapter refuses to load on a base UNet whose sha256 differs from the one recorded in the checkpoint.
-
----
 
 ## License
 
