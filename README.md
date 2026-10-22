@@ -85,14 +85,11 @@ The adapter refuses to load on a base UNet whose sha256 differs from the one rec
 - **Base model**: NV-Generate-MR-Brain and the MAISI VAE are under the NVIDIA Open Model License and are not redistributed.
 - **Data**: [MR-RATE](https://huggingface.co/datasets/Forithmus/MR-RATE), CC BY-NC-SA 4.0.
 
-## Authors
-
-Teodora Spasojevic, Jiayi Wang, Ömer Faruk Durugöl, Luca Hagen and Felix Nützel
-IDEA research group, FAU Erlangen-Nürnberg
-
 ## Acknowledgements
 
-This work was supported through the Bavarian AI Foundation Model Initiative (AI-Bay.eu), funded by the Bavarian State Ministry of Science and the Arts (StMWK). The authors gratefully acknowledge the scientific support and HPC resources provided by the Erlangen National High Performance Computing Center (NHR@FAU) of the Friedrich-Alexander-Universität Erlangen-Nürnberg (FAU) under the [NHR / BayernKI] project [PROJECT ID]. [NHR funding is provided by federal and Bavarian state authorities. / BayernKI funding is provided by Bavarian state authorities.]
+This work was supported through the Bavarian AI Foundation Model Initiative (AI-Bay.eu), funded by the Bavarian State Ministry of Science and the Arts (StMWK).
+
+The authors gratefully acknowledge the scientific support and HPC resources provided by the Erlangen National High Performance Computing Center (NHR@FAU) of the Friedrich-Alexander-Universität Erlangen-Nürnberg (FAU) under the BayernKI project.
 
 ## Citation
 
