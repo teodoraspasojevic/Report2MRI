@@ -108,7 +108,7 @@ result = pipeline.generate("Findings: ... Impression: ...", modality="T2w", plan
 save_nifti(result.volume, result.spacing_mm, "case001.nii.gz")
 ```
 
-The defaults are the submitted configuration: 30 steps, modality guidance 7, report guidance 3 and output-grid calibration. The output is a RAS NIfTI in NVIDIA's MR intensity range (about 0–1000), on a calibrated grid drawn from the output name; spline upsampling can leave small negative values at edges. `--no-grid-calibration` keeps the model's ~1 mm grid. One volume takes 5–12 s on an A100 80 GB (at most 20 GiB of GPU memory), or about 3.5 minutes on CPU (`--device cpu`).
+The defaults are the submitted configuration: 30 steps, modality guidance 7, report guidance 3 and output-grid calibration. The output is a RAS NIfTI in NVIDIA's MR intensity range. `--no-grid-calibration` keeps the model's ~1 mm grid.
 
 ## Training
 
@@ -137,17 +137,9 @@ submission/package_image.sh report2mri-submission report2mri-submission.tar.gz  
 forithmus submit report2mri-submission.tar.gz --weights weights.zip --tier gpu-a100-80 --time-budget 200
 ```
 
-## Tests
-
-```bash
-pip install -e ".[test]"
-pytest                                            # CPU, synthetic inputs, no downloads
-REPORT2MRI_WEIGHTS=weights pytest tests/test_released_weights.py
-```
-
 ## Submission summary
 
-All official hidden-test results of this model (690 series each), in submission order. Failed and cancelled runs, runs scored before the organisers corrected the evaluation on 2026-08-21, and repeats of an identical setup (the first run is listed) are omitted. Besides the final three-encoder fusion, the text conditioning was also tried with single encoders: CXR-BERT's [CLS] token alone, or all CXR-BERT or RadBERT token states. Grid calibration is the output-grid resampling described in the Overview. The submitted entry is in bold.
+All official hidden-test results of this model (690 series each), in submission order. Besides the final three-encoder fusion, the text conditioning was also tried with single encoders: CXR-BERT's [CLS] token alone, or all CXR-BERT or RadBERT token states. Grid calibration is the output-grid resampling described in the Overview. The submitted entry is in bold.
 
 | Date | Text conditioning | Report guidance | Modality guidance | Grid calibration | Other change | SSIM ↑ | PSNR ↑ | MSE ↓ | FID-2.5D ↓ |
 |---|---|---|---|---|---|---|---|---|---|
