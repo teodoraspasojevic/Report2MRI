@@ -9,9 +9,9 @@ Report2MRI generates a 3D brain MRI volume (T1w, T2w, FLAIR or SWI; axial, sagit
 
 ## Overview
 
-**Report conditioning**: Following [Report2CT](https://arxiv.org/abs/2509.14780), the findings and impression sections are encoded separately by three frozen medical text encoders (MedEmbed-large, Bio_ClinicalBERT, CXR-BERT), mean-pooled and concatenated into one 2560-d token per section. We add a third token describing the requested series as text (`[MODALITY] m [PLANE] p [SPACING] x y z`).
+**Report conditioning**: Following [Report2CT](https://arxiv.org/abs/2509.14780), the findings and impression sections are encoded separately by three frozen medical text encoders (MedEmbed-large, Bio_ClinicalBERT, CXR-BERT), mean-pooled and concatenated into one 2560-d token per section. We add a third token describing the requested series as text (`[MODALITY] m [PLANE] p [SPACING] x y z`) and embed it in the same manner.
 
-**Training**: The backbone's own objective, an L1 loss on the rectified-flow velocity, trains only the adapters and a context projection. The UNet, VAE and text encoders stay frozen. Report and modality labels are each dropped with p = 0.1 so that classifier-free guidance can be used at inference. The model is trained to generate at [NV-Generate-MR-Brain](https://huggingface.co/nvidia/NV-Generate-MR-Brain)'s recommended FOV.
+**Training**: The backbone's own objective, an L1 loss on the rectified-flow velocity, trains only the adapters and a context projection. The UNet, VAE and text encoders stay frozen. Report and modality labels are each dropped with p = 0.1 so that classifier-free guidance can be used at inference. The model is trained to generate at [NV-Generate-MR-Brain](https://huggingface.co/nvidia/NV-Generate-MR-Brain)'s recommended FOV with spacing ~1mm.
 
 **Inference**: 30 rectified-flow steps with hierarchical classifier-free guidance, in which the report is applied on top of the base model's modality guidance (modality scale 7, report scale 3). In the final submissions, generated volumes are kept at their training FOV but are resampled to a slice thickness and in-plane spacing drawn from the training-split of MR-RATE.
 
@@ -39,6 +39,7 @@ Official scores on the hidden test set (690 series, all scored). The ranking is 
 |---|---|---|---|---|---|
 | **Report2MRI** | 0.4437 | **13.64** | **0.0447** | **204.05** | **1.25 (1st)** |
 | 2nd place | **0.4891** | 13.49 | 0.0466 | 263.51 | 1.75 |
+| 3rd place | 0.3716 | 13.00 | 0.0525 | 1190.57 | 3.00 |
 
 How the submitted configuration was built up (official test-set scores):
 
@@ -97,16 +98,7 @@ report2mri-generate --weights weights \
     --modality T2w --plane AXIAL --out outputs/case001.nii.gz
 ```
 
-**Input.** A free-text report is split on its `Findings:` and `Impression:` headings (also `Conclusion:`/`Summary:`); text without a recognised heading is used as the findings. Alternatively pass `--findings` and `--impression` directly. `--modality` is one of `T1w`, `T2w`, `FLAIR`, `SWI` and `--plane` one of `AXIAL`, `SAGITTAL`, `CORONAL`, `OBLIQUE` (oblique uses NV-Generate-MR-Brain's default 256³ grid at 1 mm). Each section is truncated at 512 tokens per encoder.
-
-For several reports, write one JSON object per line and pass `--cases`; each volume is written as `<id>.nii.gz`:
-
-```bash
-echo '{"id": "case002", "report": "Findings: Mild periventricular white matter hyperintensities. Impression: Chronic small vessel disease.", "modality": "FLAIR", "plane": "CORONAL"}' > cases.jsonl
-report2mri-generate --weights weights --cases cases.jsonl --out-dir outputs
-```
-
-From Python:
+The report is split on its `Findings:` and `Impression:` headings; alternatively pass `--findings` and `--impression`. `--modality` is `T1w`, `T2w`, `FLAIR` or `SWI`, and `--plane` is `AXIAL`, `SAGITTAL`, `CORONAL` or `OBLIQUE`. For many reports, pass a JSONL file with one `{"id", "report", "modality", "plane"}` object per line as `--cases`, together with `--out-dir`. From Python:
 
 ```python
 from report2mri import Report2MRIPipeline, save_nifti
@@ -116,23 +108,15 @@ result = pipeline.generate("Findings: ... Impression: ...", modality="T2w", plan
 save_nifti(result.volume, result.spacing_mm, "case001.nii.gz")
 ```
 
-Given a model id instead of a directory, `from_pretrained` downloads the adapter, the NVIDIA base model and VAE, and the three text encoders (at pinned revisions) into the Hugging Face cache.
-
-Defaults are the submitted configuration: 30 steps, modality guidance 7 (`--modality-guidance-scale`), report guidance 3 (`--report-guidance-scale`), seed 1234 (`--seed`), and output-grid calibration on.
-
-**Output.** A NIfTI volume in RAS orientation with an axis-aligned affine whose diagonal is the voxel spacing. Data are float32 holding integers in NVIDIA's MR intensity range (0 to about 1000; brighter voxels can exceed 1000). The model generates on a per-(modality, plane) grid of about 1 mm with every axis a multiple of 32, e.g. 256 × 256 × 160 for T2w axial. The calibrated grid keeps that field of view but changes the slice thickness (slab averaging) and the in-plane spacing (cubic-spline upsampling). The grid is drawn deterministically from the output file name, e.g. 480 × 480 × 35 at 0.5 × 0.5 × 4.5 mm for the command above. Spline upsampling can produce small negative values at sharp edges. `--no-grid-calibration` writes the model grid instead.
-
-**Hardware.** Verified on one NVIDIA A100 80 GB: about 5–12 s per volume including calibration (after 15–20 s of model loading), at most 20 GiB of GPU memory. CPU inference works (`--device cpu`; the VAE's group norms then run in float32) but is slow: about 3.5 minutes for one volume on a 112-core machine.
+The defaults are the submitted configuration: 30 steps, modality guidance 7, report guidance 3 and output-grid calibration. The output is a RAS NIfTI in NVIDIA's MR intensity range (about 0–1000), on a calibrated grid drawn from the output name; spline upsampling can leave small negative values at edges. `--no-grid-calibration` keeps the model's ~1 mm grid. One volume takes 5–12 s on an A100 80 GB (at most 20 GiB of GPU memory), or about 3.5 minutes on CPU (`--device cpu`).
 
 ## Training
 
-Training reads a JSONL manifest with one line per series:
+Training reads a JSONL manifest with one series per line; `image` may be relative to the manifest:
 
 ```json
 {"image": "path/to/series.nii.gz", "findings": "...", "impression": "...", "modality": "T2w", "plane": "AXIAL"}
 ```
-
-`image` may be relative to the manifest. Each volume is reoriented to RAS and resampled trilinearly to its (modality, plane) grid. It is then normalised (0th–99.5th percentile of nonzero voxels mapped to [0, 1], unclipped) and centre-cropped/padded, with the anterior-posterior window shifted 15 mm posteriorly to compensate for defacing. The released adapter was trained on the MR-RATE training split; downloading and converting MR-RATE is not part of this repository.
 
 ```bash
 report2mri-train --manifest train.jsonl --weights weights --out runs/report2mri
@@ -140,30 +124,18 @@ report2mri-train --manifest train.jsonl --weights weights --out runs/report2mri
 torchrun --nproc_per_node=8 -m report2mri.cli.train --manifest train.jsonl --weights weights --out runs/report2mri
 ```
 
-The defaults are those of the released adapter: Adam at learning rate 1e-3 with a power-2 polynomial decay, 2 epochs, batch size 8 and gradient accumulation 4 per GPU (the release used 8 GPUs, an effective batch of 256), report and modality dropout 0.1, bfloat16 autocast and gradient clipping at 1.0. `weights/` only needs the base UNet, VAE and text encoders. Checkpoints (`adapter_last.pt`, plus `adapter_step*.pt` with `--save-every-steps`) contain only the adapter and can replace `adapter.pt` in a weights directory. `--resume` continues from the next epoch and must use the original schedule settings. Training on an A100 80 GB at batch size 2 on the 256 × 256 × 160 grid used 13 GiB of GPU memory.
+Volumes are reoriented to RAS, resampled to their (modality, plane) grid and percentile-normalised. The defaults reproduce the released adapter: Adam at learning rate 1e-3, 2 epochs, and batch size 8 with gradient accumulation 4 per GPU on 8 GPUs. Checkpoints contain only the adapter and can replace `adapter.pt` in a weights directory; `--resume` continues a run. Downloading and preparing MR-RATE is not part of this repository.
 
 ## Challenge submission
 
-[`submission/`](submission) rebuilds the container submitted to the VLM3D MRI Report-to-Volume challenge on this package. [`predict.py`](submission/predict.py) reads `/input/prompts.json`, a list of `{"input_image_name": "<study>_<modality>-raw-<plane>[-N]", "report": "..."}`. It takes the modality and plane from each name and writes `/output/<input_image_name>.nii.gz` with the submitted settings, including output-grid calibration keyed by the name. Finished volumes are backed up to `/checkpoint`, so a run stopped by SIGTERM (time limit or spot preemption) resumes where it stopped. Each case uses its own seed, derived from `--seed` (default 1234) and its name. The leaderboard run itself was unseeded, so a resubmission reproduces it up to run-to-run variation.
+[`submission/`](submission) holds the challenge container. [`predict.py`](submission/predict.py) turns `/input/prompts.json` into `/output/<input_image_name>.nii.gz` with the submitted settings, reading the modality and plane from each name, and resumes from `/checkpoint` after a SIGTERM. Each case is seeded from its name; the leaderboard run itself was unseeded. On the example prompts in [`submission/example_prompts.json`](submission/example_prompts.json), its outputs are bit-identical to the original submission pipeline.
 
 ```bash
-# from the repository root, with weights/ prepared as above
 docker build -f submission/Dockerfile -t report2mri-submission .
 submission/make_weights_zip.sh weights weights.zip
-
-# local test on synthetic prompts; the container runs as uid 1000, so the output directories must be writable
-mkdir -p outputs/submission_test/input && cp submission/example_prompts.json outputs/submission_test/input/prompts.json
-mkdir -p -m 777 outputs/submission_test/output outputs/submission_test/checkpoint
-docker run --rm --gpus all -v "$PWD/outputs/submission_test/input:/input:ro" -v "$PWD/weights:/weights:ro" \
-    -v "$PWD/outputs/submission_test/output:/output" -v "$PWD/outputs/submission_test/checkpoint:/checkpoint" \
-    report2mri-submission
-
-# export as a classic docker archive (requires skopeo) and submit
-submission/package_image.sh report2mri-submission report2mri-submission.tar.gz
+submission/package_image.sh report2mri-submission report2mri-submission.tar.gz   # classic docker archive, needs skopeo
 forithmus submit report2mri-submission.tar.gz --weights weights.zip --tier gpu-a100-80 --time-budget 200
 ```
-
-`--weights` is mounted at `/weights` inside the container. `forithmus submit` sends to the challenge's current phase unless `--phase` is given. The image pins the library versions the released model was verified with (PyTorch 2.13 with CUDA 12.6). On the four example prompts its outputs are bit-identical to the original submission pipeline given the same seeds. On one A100 80 GB a case took 4–15 s, and 75–100 s for oblique SWI, whose calibrated grid is the largest.
 
 ## Tests
 
@@ -175,7 +147,7 @@ REPORT2MRI_WEIGHTS=weights pytest tests/test_released_weights.py
 
 ## Submission summary
 
-All official hidden-test results of this model (690 series each), in submission order. Failed and cancelled runs, runs scored before the organisers corrected the evaluation on 2026-08-21, and repeats of an identical setup (the first run is listed) are omitted. Besides the final three-encoder fusion, the text conditioning was also tried with single encoders: CXR-BERT's [CLS] token alone, or all CXR-BERT or RadBERT token states. Grid calibration is described under Inference. The submitted entry is in bold.
+All official hidden-test results of this model (690 series each), in submission order. Failed and cancelled runs, runs scored before the organisers corrected the evaluation on 2026-08-21, and repeats of an identical setup (the first run is listed) are omitted. Besides the final three-encoder fusion, the text conditioning was also tried with single encoders: CXR-BERT's [CLS] token alone, or all CXR-BERT or RadBERT token states. Grid calibration is the output-grid resampling described in the Overview. The submitted entry is in bold.
 
 | Date | Text conditioning | Report guidance | Modality guidance | Grid calibration | Other change | SSIM ↑ | PSNR ↑ | MSE ↓ | FID-2.5D ↓ |
 |---|---|---|---|---|---|---|---|---|---|
