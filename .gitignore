@@ -1,0 +1,43 @@
+# Weights, data and outputs
+weights/
+runs/
+outputs/
+data/
+tests/
+*.pt
+*.pth
+*.ckpt
+*.bin
+*.safetensors
+*.nii
+*.nii.gz
+*.npy
+*.npz
+*.h5
+*.zip
+*.tar
+*.tar.gz
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.venv/
+venv/
+
+# Logs, caches and local configuration
+*.log
+logs/
+wandb/
+.cache/
+.env
+.env.*
+*.token
+.netrc
+.vscode/
+.idea/
+.claude/
+.DS_Store

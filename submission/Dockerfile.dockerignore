@@ -1,0 +1,7 @@
+*
+!pyproject.toml
+!README.md
+!LICENSE
+!report2mri/
+!submission/predict.py
+**/__pycache__
