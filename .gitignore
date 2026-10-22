@@ -4,6 +4,7 @@ runs/
 outputs/
 data/
 tests/
+submission/example_prompts.json
 *.pt
 *.pth
 *.ckpt

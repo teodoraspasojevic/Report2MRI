@@ -128,7 +128,7 @@ Volumes are reoriented to RAS, resampled to their (modality, plane) grid and per
 
 ## Challenge submission
 
-[`submission/`](submission) holds the challenge container. [`predict.py`](submission/predict.py) turns `/input/prompts.json` into `/output/<input_image_name>.nii.gz` with the submitted settings, reading the modality and plane from each name, and resumes from `/checkpoint` after a SIGTERM. Each case is seeded from its name; the leaderboard run itself was unseeded. On the example prompts in [`submission/example_prompts.json`](submission/example_prompts.json), its outputs are bit-identical to the original submission pipeline.
+[`submission/`](submission) holds the challenge container. [`predict.py`](submission/predict.py) turns `/input/prompts.json` into `/output/<input_image_name>.nii.gz` with the submitted settings, reading the modality and plane from each name, and resumes from `/checkpoint` after a SIGTERM. Each case is seeded from its name; the leaderboard run itself was unseeded.
 
 ```bash
 docker build -f submission/Dockerfile -t report2mri-submission .
