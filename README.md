@@ -11,9 +11,9 @@ Report2MRI generates a 3D brain MRI volume (T1w, T2w, FLAIR or SWI; axial, sagit
 
 **Report conditioning**: Following [Report2CT](https://arxiv.org/abs/2509.14780), the findings and impression sections are encoded separately by three frozen medical text encoders (MedEmbed-large, Bio_ClinicalBERT, CXR-BERT), mean-pooled and concatenated into one 2560-d token per section. We add a third token describing the requested series as text (`[MODALITY] m [PLANE] p [SPACING] x y z`).
 
-**Training**: The backbone's own objective, an L1 loss on the rectified-flow velocity, trains only the adapters and a context projection. The UNet, VAE and text encoders stay frozen. Report and modality labels are each dropped with p = 0.1 so that classifier-free guidance can be used at inference.
+**Training**: The backbone's own objective, an L1 loss on the rectified-flow velocity, trains only the adapters and a context projection. The UNet, VAE and text encoders stay frozen. Report and modality labels are each dropped with p = 0.1 so that classifier-free guidance can be used at inference. The model is trained to generate at [NV-Generate-MR-Brain](https://huggingface.co/nvidia/NV-Generate-MR-Brain)'s recommended FOV.
 
-**Inference**: 30 rectified-flow steps with hierarchical classifier-free guidance, in which the report is applied on top of the base model's modality guidance (modality scale 7, report scale 3). The volume is then resampled to a slice thickness and in-plane spacing drawn from the training-split acquisition statistics for its modality and plane, keeping the physical field of view. This output-grid calibration matters because the challenge's 2.5D FID slices each volume on the grid it is written on.
+**Inference**: 30 rectified-flow steps with hierarchical classifier-free guidance, in which the report is applied on top of the base model's modality guidance (modality scale 7, report scale 3). In the final submissions, generated volumes are kept at their training FOV but are resampled to a slice thickness and in-plane spacing drawn from the training-split of MR-RATE.
 
 ## Method
 
@@ -173,6 +173,39 @@ pytest                                            # CPU, synthetic inputs, no do
 REPORT2MRI_WEIGHTS=weights pytest tests/test_released_weights.py
 ```
 
+## Submission summary
+
+All official hidden-test results of this model (690 series each), in submission order. Failed and cancelled runs, runs scored before the organisers corrected the evaluation on 2026-08-21, and repeats of an identical setup (the first run is listed) are omitted. Besides the final three-encoder fusion, the text conditioning was also tried with single encoders: CXR-BERT's [CLS] token alone, or all CXR-BERT or RadBERT token states. Grid calibration is described under Inference. The submitted entry is in bold.
+
+| Date | Text conditioning | Report guidance | Modality guidance | Grid calibration | Other change | SSIM ↑ | PSNR ↑ | MSE ↓ | FID-2.5D ↓ |
+|---|---|---|---|---|---|---|---|---|---|
+| 2026-08-21 | CXR-BERT [CLS] token | 7 | 10 | none | – | 0.4481 | 13.22 | 0.0494 | 309.66 |
+| 2026-08-21 | Three-encoder fusion | 3 | 10 | none | – | 0.4420 | 13.50 | 0.0461 | 344.29 |
+| 2026-08-21 | CXR-BERT tokens | 4 | 10 | none | – | 0.4443 | 13.48 | 0.0466 | 392.65 |
+| 2026-08-21 | RadBERT tokens | 4 | 10 | none | – | 0.4512 | 13.56 | 0.0454 | 406.38 |
+| 2026-08-23 | CXR-BERT [CLS] token | 7 | 10 | none | best of 5 seeds per case | 0.4551 | 13.39 | 0.0474 | 308.40 |
+| 2026-08-23 | CXR-BERT [CLS] token | 7 | 10 | none | 50 sampling steps | 0.4483 | 13.25 | 0.0491 | 311.28 |
+| 2026-08-23 | CXR-BERT [CLS] token | 9 | 10 | none | – | 0.4461 | 13.21 | 0.0498 | 301.19 |
+| 2026-08-23 | CXR-BERT [CLS] token | 7 | 10 | slice axis | – | 0.4504 | 13.27 | 0.0492 | 247.72 |
+| 2026-08-23 | CXR-BERT [CLS] token | 7 | 10 | none | impression before findings | 0.4511 | 13.26 | 0.0492 | 314.13 |
+| 2026-08-24 | CXR-BERT [CLS] token | 8 | 10 | none | – | 0.4465 | 13.23 | 0.0494 | 308.00 |
+| 2026-08-24 | CXR-BERT [CLS] token | 7 | 10 | none | posterior-shift correction (first version) | 0.4432 | 13.16 | 0.0503 | 300.90 |
+| 2026-08-24 | CXR-BERT [CLS] token | 7 | 10 | none | posterior-shift correction (fixed) | 0.4491 | 13.23 | 0.0494 | 308.81 |
+| 2026-08-24 | CXR-BERT [CLS] token | 7 | 7 | none | – | 0.4548 | 13.33 | 0.0482 | 297.63 |
+| 2026-08-24 | CXR-BERT [CLS] token | 4 | 10 | none | – | 0.4510 | 13.25 | 0.0492 | 330.84 |
+| 2026-08-25 | CXR-BERT [CLS] token | 9 | 10 | slice axis | – | 0.4454 | 13.21 | 0.0497 | 262.92 |
+| 2026-08-25 | CXR-BERT [CLS] token | 7 | 10 | slice axis | brain crop | 0.4420 | 13.15 | 0.0506 | 253.32 |
+| 2026-08-25 | CXR-BERT [CLS] token | 9 | 10 | none | brain crop | 0.4415 | 13.14 | 0.0505 | 298.77 |
+| 2026-08-25 | CXR-BERT [CLS] token | 9 | 10 | slice axis | brain crop | 0.4392 | 13.14 | 0.0507 | 255.84 |
+| 2026-08-27 | CXR-BERT [CLS] token | 7 | 7 | slice axis | – | 0.4556 | 13.35 | 0.0481 | 240.94 |
+| 2026-08-31 | Three-encoder fusion | 3 | 10 | slice axis | – | 0.4428 | 13.56 | 0.0454 | 215.69 |
+| 2026-09-01 | CXR-BERT [CLS] token | 7 | 7 | slice axis | Gaussian instead of box slab kernel | 0.4539 | 13.32 | 0.0485 | 252.74 |
+| 2026-09-02 | CXR-BERT [CLS] token | 7 | 7 | slice axis + in-plane | – | 0.4522 | 13.32 | 0.0485 | 247.98 |
+| 2026-09-02 | Three-encoder fusion | 3 | 10 | slice axis + in-plane | – | 0.4386 | 13.56 | 0.0454 | 212.39 |
+| 2026-09-02 | Three-encoder fusion | 3 | 7 | slice axis | – | 0.4483 | 13.64 | 0.0447 | 204.18 |
+| **2026-09-05** | **Three-encoder fusion** | **3** | **7** | **slice axis + in-plane** | **–** | **0.4437** | **13.64** | **0.0447** | **204.05** |
+| 2026-09-05 | Three-encoder fusion | 3 | 7 | slice axis | background set to 0 | 0.4432 | 13.57 | 0.0453 | 214.81 |
+
 ## License
 
 - **Code**: [Apache License 2.0](LICENSE). Builds on [MONAI](https://github.com/Project-MONAI/MONAI) and [NV-Generate-CTMR](https://github.com/nvidia-medtech/NV-Generate-CTMR) (both Apache-2.0).
@@ -193,7 +226,7 @@ If you use this code or model, please cite:
 ```bibtex
 @misc{spasojevic2026report2mri,
   title        = {Report-Conditioned Adapters on a Frozen 3D Brain-MRI Diffusion Prior},
-  author       = {Spasojevic, Teodora and Wang, Jiayi and Durug{\"o}l, {\"O}mer Faruk and Hagen, Luca and N{\"u}tzel, Felix},
+  author       = {Spasojevic, Teodora and Wang, Jiayi and Durugoel, Oemer Faruk and Hagen, Luca and Nuetzel, Felix},
   year         = {2026},
   howpublished = {\url{https://github.com/teodoraspasojevic/Report2MRI}},
   note         = {1st place, VLM3D @ MICCAI 2026, MRI Report-to-Volume}
