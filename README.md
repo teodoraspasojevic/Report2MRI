@@ -7,6 +7,8 @@
 
 Report2MRI generates a 3D brain MRI volume (T1w, T2w, FLAIR or SWI; axial, sagittal or coronal) from a free-text radiology report. It leverages NVIDIA's [NV-Generate-MR-Brain](https://huggingface.co/nvidia/NV-Generate-MR-Brain) latent diffusion model frozen and adds five zero-initialised cross-attention adapters.
 
+The code and the released weights correspond to our winning challenge submission `e6a5d625-9ae3-4d43-b80a-8648e7954dca` (see [Submission summary](#submission-summary)).
+
 ## Overview
 
 **Report conditioning**: Following [Report2CT](https://arxiv.org/abs/2509.14780), the findings and impression sections are encoded separately by three frozen medical text encoders (MedEmbed-large, Bio_ClinicalBERT, CXR-BERT), mean-pooled and concatenated into one 2560-d token per section. We add a third token describing the requested series as text (`[MODALITY] m [PLANE] p [SPACING] x y z`) and embed it in the same manner.
@@ -141,34 +143,34 @@ forithmus submit report2mri-submission.tar.gz --weights weights.zip --tier gpu-a
 
 All official hidden-test results of this model (690 series each), in submission order. Besides the final three-encoder fusion, the text conditioning was also tried with single encoders: CXR-BERT's [CLS] token alone, or all CXR-BERT or RadBERT token states. Grid calibration is the output-grid resampling described in the Overview. The submitted entry is in bold.
 
-| Date | Text conditioning | Report guidance | Modality guidance | Grid calibration | Other change | SSIM ↑ | PSNR ↑ | MSE ↓ | FID-2.5D ↓ |
-|---|---|---|---|---|---|---|---|---|---|
-| 2026-08-21 | CXR-BERT [CLS] token | 7 | 10 | none | – | 0.4481 | 13.22 | 0.0494 | 309.66 |
-| 2026-08-21 | Three-encoder fusion | 3 | 10 | none | – | 0.4420 | 13.50 | 0.0461 | 344.29 |
-| 2026-08-21 | CXR-BERT tokens | 4 | 10 | none | – | 0.4443 | 13.48 | 0.0466 | 392.65 |
-| 2026-08-21 | RadBERT tokens | 4 | 10 | none | – | 0.4512 | 13.56 | 0.0454 | 406.38 |
-| 2026-08-23 | CXR-BERT [CLS] token | 7 | 10 | none | best of 5 seeds per case | 0.4551 | 13.39 | 0.0474 | 308.40 |
-| 2026-08-23 | CXR-BERT [CLS] token | 7 | 10 | none | 50 sampling steps | 0.4483 | 13.25 | 0.0491 | 311.28 |
-| 2026-08-23 | CXR-BERT [CLS] token | 9 | 10 | none | – | 0.4461 | 13.21 | 0.0498 | 301.19 |
-| 2026-08-23 | CXR-BERT [CLS] token | 7 | 10 | slice axis | – | 0.4504 | 13.27 | 0.0492 | 247.72 |
-| 2026-08-23 | CXR-BERT [CLS] token | 7 | 10 | none | impression before findings | 0.4511 | 13.26 | 0.0492 | 314.13 |
-| 2026-08-24 | CXR-BERT [CLS] token | 8 | 10 | none | – | 0.4465 | 13.23 | 0.0494 | 308.00 |
-| 2026-08-24 | CXR-BERT [CLS] token | 7 | 10 | none | posterior-shift correction (first version) | 0.4432 | 13.16 | 0.0503 | 300.90 |
-| 2026-08-24 | CXR-BERT [CLS] token | 7 | 10 | none | posterior-shift correction (fixed) | 0.4491 | 13.23 | 0.0494 | 308.81 |
-| 2026-08-24 | CXR-BERT [CLS] token | 7 | 7 | none | – | 0.4548 | 13.33 | 0.0482 | 297.63 |
-| 2026-08-24 | CXR-BERT [CLS] token | 4 | 10 | none | – | 0.4510 | 13.25 | 0.0492 | 330.84 |
-| 2026-08-25 | CXR-BERT [CLS] token | 9 | 10 | slice axis | – | 0.4454 | 13.21 | 0.0497 | 262.92 |
-| 2026-08-25 | CXR-BERT [CLS] token | 7 | 10 | slice axis | brain crop | 0.4420 | 13.15 | 0.0506 | 253.32 |
-| 2026-08-25 | CXR-BERT [CLS] token | 9 | 10 | none | brain crop | 0.4415 | 13.14 | 0.0505 | 298.77 |
-| 2026-08-25 | CXR-BERT [CLS] token | 9 | 10 | slice axis | brain crop | 0.4392 | 13.14 | 0.0507 | 255.84 |
-| 2026-08-27 | CXR-BERT [CLS] token | 7 | 7 | slice axis | – | 0.4556 | 13.35 | 0.0481 | 240.94 |
-| 2026-08-31 | Three-encoder fusion | 3 | 10 | slice axis | – | 0.4428 | 13.56 | 0.0454 | 215.69 |
-| 2026-09-01 | CXR-BERT [CLS] token | 7 | 7 | slice axis | Gaussian instead of box slab kernel | 0.4539 | 13.32 | 0.0485 | 252.74 |
-| 2026-09-02 | CXR-BERT [CLS] token | 7 | 7 | slice axis + in-plane | – | 0.4522 | 13.32 | 0.0485 | 247.98 |
-| 2026-09-02 | Three-encoder fusion | 3 | 10 | slice axis + in-plane | – | 0.4386 | 13.56 | 0.0454 | 212.39 |
-| 2026-09-02 | Three-encoder fusion | 3 | 7 | slice axis | – | 0.4483 | 13.64 | 0.0447 | 204.18 |
-| **2026-09-05** | **Three-encoder fusion** | **3** | **7** | **slice axis + in-plane** | **–** | **0.4437** | **13.64** | **0.0447** | **204.05** |
-| 2026-09-05 | Three-encoder fusion | 3 | 7 | slice axis | background set to 0 | 0.4432 | 13.57 | 0.0453 | 214.81 |
+| Date | Text conditioning | Report guidance | Modality guidance | Grid calibration | Other change | SSIM ↑ | PSNR ↑ | MSE ↓ | FID-2.5D ↓ | Submission ID |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 2026-08-21 | CXR-BERT [CLS] token | 7 | 10 | none | – | 0.4481 | 13.22 | 0.0494 | 309.66 | `af24899b-83bf-4304-a8f4-a666e7b4e077` |
+| 2026-08-21 | Three-encoder fusion | 3 | 10 | none | – | 0.4420 | 13.50 | 0.0461 | 344.29 | `2b393adf-a548-4f20-92b4-6c2756138c85` |
+| 2026-08-21 | CXR-BERT tokens | 4 | 10 | none | – | 0.4443 | 13.48 | 0.0466 | 392.65 | `c55a7b6e-f1ec-46d2-a3d8-fd560235ef65` |
+| 2026-08-21 | RadBERT tokens | 4 | 10 | none | – | 0.4512 | 13.56 | 0.0454 | 406.38 | `78985def-5b79-4067-b8e1-469f17e80e90` |
+| 2026-08-23 | CXR-BERT [CLS] token | 7 | 10 | none | best of 5 seeds per case | 0.4551 | 13.39 | 0.0474 | 308.40 | `eb5f7ebd-9d3d-43b5-9c91-1c0f5f99acd1` |
+| 2026-08-23 | CXR-BERT [CLS] token | 7 | 10 | none | 50 sampling steps | 0.4483 | 13.25 | 0.0491 | 311.28 | `df0d9efd-1522-4b68-a94a-5869496398ce` |
+| 2026-08-23 | CXR-BERT [CLS] token | 9 | 10 | none | – | 0.4461 | 13.21 | 0.0498 | 301.19 | `fa07a3da-7991-481d-82c8-f3e1694d619a` |
+| 2026-08-23 | CXR-BERT [CLS] token | 7 | 10 | slice axis | – | 0.4504 | 13.27 | 0.0492 | 247.72 | `72290092-83e9-4200-ac65-cad3cc5106cf` |
+| 2026-08-23 | CXR-BERT [CLS] token | 7 | 10 | none | impression before findings | 0.4511 | 13.26 | 0.0492 | 314.13 | `93a304b0-e2cb-498d-8006-094915924ae4` |
+| 2026-08-24 | CXR-BERT [CLS] token | 8 | 10 | none | – | 0.4465 | 13.23 | 0.0494 | 308.00 | `baf28011-782b-47b6-83e6-75a33daefb52` |
+| 2026-08-24 | CXR-BERT [CLS] token | 7 | 10 | none | posterior-shift correction (first version) | 0.4432 | 13.16 | 0.0503 | 300.90 | `f3650b25-d468-4b35-8185-9d433511a6fc` |
+| 2026-08-24 | CXR-BERT [CLS] token | 7 | 10 | none | posterior-shift correction (fixed) | 0.4491 | 13.23 | 0.0494 | 308.81 | `c4fa6667-8920-42ce-b633-218a2681aab3` |
+| 2026-08-24 | CXR-BERT [CLS] token | 7 | 7 | none | – | 0.4548 | 13.33 | 0.0482 | 297.63 | `ec4bca5e-984b-421f-a9c3-dfd5380b6528` |
+| 2026-08-24 | CXR-BERT [CLS] token | 4 | 10 | none | – | 0.4510 | 13.25 | 0.0492 | 330.84 | `5aba0f14-6a14-4b0c-a324-f069c8bf9be0` |
+| 2026-08-25 | CXR-BERT [CLS] token | 9 | 10 | slice axis | – | 0.4454 | 13.21 | 0.0497 | 262.92 | `b9204ba3-934f-45dd-8930-93fb85dd15ed` |
+| 2026-08-25 | CXR-BERT [CLS] token | 7 | 10 | slice axis | brain crop | 0.4420 | 13.15 | 0.0506 | 253.32 | `6be289d8-b3e5-4794-a2e4-72541db3abbe` |
+| 2026-08-25 | CXR-BERT [CLS] token | 9 | 10 | none | brain crop | 0.4415 | 13.14 | 0.0505 | 298.77 | `28a2a16f-f2e3-4a08-a54a-938c4028620e` |
+| 2026-08-25 | CXR-BERT [CLS] token | 9 | 10 | slice axis | brain crop | 0.4392 | 13.14 | 0.0507 | 255.84 | `e8eb689c-fd93-45b0-8e6d-19327fcdcb3e` |
+| 2026-08-27 | CXR-BERT [CLS] token | 7 | 7 | slice axis | – | 0.4556 | 13.35 | 0.0481 | 240.94 | `5a34d804-23e2-4822-93c1-138641bd6a9e` |
+| 2026-08-31 | Three-encoder fusion | 3 | 10 | slice axis | – | 0.4428 | 13.56 | 0.0454 | 215.69 | `f77d3a70-56fb-42d2-a5dc-f278f67581bf` |
+| 2026-09-01 | CXR-BERT [CLS] token | 7 | 7 | slice axis | Gaussian instead of box slab kernel | 0.4539 | 13.32 | 0.0485 | 252.74 | `84140672-416e-4133-ac3d-8b959b6006fb` |
+| 2026-09-02 | CXR-BERT [CLS] token | 7 | 7 | slice axis + in-plane | – | 0.4522 | 13.32 | 0.0485 | 247.98 | `c70574c5-c90b-4caa-b4f5-5d7cb9911213` |
+| 2026-09-02 | Three-encoder fusion | 3 | 10 | slice axis + in-plane | – | 0.4386 | 13.56 | 0.0454 | 212.39 | `3122e853-babb-48c0-9d73-c0abbb4db938` |
+| 2026-09-02 | Three-encoder fusion | 3 | 7 | slice axis | – | 0.4483 | 13.64 | 0.0447 | 204.18 | `b82ea8e9-9c89-45e4-8d00-b9eb34583afa` |
+| **2026-09-05** | **Three-encoder fusion** | **3** | **7** | **slice axis + in-plane** | **–** | **0.4437** | **13.64** | **0.0447** | **204.05** | **`e6a5d625-9ae3-4d43-b80a-8648e7954dca`** |
+| 2026-09-05 | Three-encoder fusion | 3 | 7 | slice axis | background set to 0 | 0.4432 | 13.57 | 0.0453 | 214.81 | `3603c9ca-57ff-44fa-a40a-16cd9ada8dea` |
 
 ## License
 
