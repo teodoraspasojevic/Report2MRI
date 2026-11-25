@@ -3,7 +3,11 @@
 **Report2MRI: 3D rectified-flow brain MRI generation conditioned on fused radiology-report embeddings from multiple frozen medical text encoders.**
 > 🏆 Winner of the [VLM3D @ MICCAI 2026](https://research.forithmus.com/challenges/mr-volume-generation) MRI Report-to-Volume challenge
 
-[Paper (coming soon)] | [Checkpoint (Hugging Face)](https://huggingface.co/teodora-spasojevic-fau/Report2MRI) | [Challenge](https://research.forithmus.com/challenges/mr-volume-generation)
+[![Paper](https://img.shields.io/badge/Paper-coming%20soon-lightgrey)](#)
+[![Model](https://img.shields.io/badge/%F0%9F%A4%97%20Model-Report2MRI-yellow)](https://huggingface.co/teodora-spasojevic-fau/Report2MRI)
+[![Dataset](https://img.shields.io/badge/%F0%9F%A4%97%20Dataset-MR--RATE-orange)](https://huggingface.co/datasets/Forithmus/MR-RATE)
+[![Challenge](https://img.shields.io/badge/VLM3D%20%40%20MICCAI%202026-1st%20place-gold)](https://research.forithmus.com/challenges/mr-volume-generation)
+[![License](https://img.shields.io/badge/License-Apache--2.0-blue)](LICENSE)
 
 Report2MRI generates a 3D brain MRI volume (T1w, T2w, FLAIR or SWI; axial, sagittal or coronal) from a free-text radiology report. It leverages NVIDIA's [NV-Generate-MR-Brain](https://huggingface.co/nvidia/NV-Generate-MR-Brain) latent diffusion model frozen and adds five zero-initialised cross-attention adapters.
 
